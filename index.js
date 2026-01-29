@@ -23,28 +23,31 @@ console.log('BOT TOKEN:', BOT_TOKEN ? 'OK' : 'MISSING');
 if (BOT_TOKEN) {
   const bot = new Telegraf(BOT_TOKEN);
 
-  bot.start((ctx) =>
+  bot.start((ctx) => {
     ctx.reply(
       '✅ Analitica GPT ишлаяпти!\n\n' +
       'Командалар:\n' +
       '/ping — текшириш\n' +
-      '/stats — ҳисобот'
-    )
-  );
+      '/stats — Яндекс ҳисобот'
+    );
+  });
 
-  bot.command('ping', (ctx) => ctx.reply('🏓 Pong!'));
+  bot.command('ping', (ctx) => {
+    ctx.reply('🏓 Pong!');
+  });
 
   bot.command('stats', async (ctx) => {
     try {
       const s = await getStats();
       ctx.reply(
-        `📊 YANDEX ҲИСОБОТИ\n\n` +
-        `💰 Даромад: ${s.revenue}\n` +
-        `📦 Буюртма: ${s.orders}\n` +
-        `📢 Реклама: ${s.ads}`
+        `📊 <b>Яндекс ҳисобот</b>\n\n` +
+        `💰 <b>Даромад:</b> ${s.revenue}\n` +
+        `📦 <b>Буюртмалар:</b> ${s.orders}\n` +
+        `📢 <b>Реклама:</b> ${s.ads}`,
+        { parse_mode: 'HTML' }
       );
     } catch (e) {
-      ctx.reply('❌ Хисоботни олишда хатолик');
+      ctx.reply('❌ Ҳисоботни олишда хатолик');
     }
   });
 
@@ -60,6 +63,7 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log('🚀 Server running on port', PORT);
 });
+
 
 
 
