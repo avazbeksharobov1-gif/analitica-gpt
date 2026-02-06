@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Analitica Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { font-family: Arial; padding:20px; background:#0f172a; color:white }
+    button { padding:12px 20px; margin:8px; border-radius:10px; border:none }
+  </style>
+</head>
+<body>
+<h3>🧠 AI Insight</h3>
+<div id="aiInsight" class="card">
+  Юкланяпти...
+</div>
+<h3>🧠 AI Insight</h3>
+<div id="aiInsight" class="card">
+  Юкланяпти...
+</div>
+
+<h2>📊 Project танланг</h2>
+
+<button onclick="selectProject(null)">🌍 All projects</button>
+<button onclick="selectProject(0)">Project 1</button>
+<button onclick="selectProject(1)">Project 2</button>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+
+function selectProject(id) {
+  fetch('/api/project', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      tgId: tg.initDataUnsafe.user.id,
+      project: id
+    })
+  }).then(()=>{
+    tg.showAlert('✅ Project сақланди');
+  })
+</script>
+</body>
+</html>
+

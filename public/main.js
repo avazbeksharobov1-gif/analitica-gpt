@@ -1,19 +1,37 @@
-async function load() {
-  const res = await fetch('/api/stats');
-  const data = await res.json();
+async function loadStats(range) {
+  let from = new Date();
+  let to = new Date();
+
+  if (range === '7d') from.setDate(from.getDate() - 6);
+  if (range === '30d') from.setDate(from.getDate() - 29);
+
+  const r = await fetch(`/api/stats?from=${from.toISOString()}&to=${to.toISOString()}`);
+  const s = await r.json();
 
   document.getElementById('revenue').innerText =
-    data.revenue.toLocaleString();
-
-  document.getElementById('expenses').innerText =
-    data.expenses.toLocaleString();
-
-  document.getElementById('profit').innerText =
-    data.profit.toLocaleString();
-
-  document.getElementById('ai').innerText =
-    data.ai.map(x => 'вЂў ' + x).join('\n');
+    `Daromad / Доход: ${s.revenue}`;
+  document.getElementById('orders').innerText =
+    `Buyurtmalar / Заказы: ${s.orders}`;
+  document.getElementById('ads').innerText =
+    `Harajat / Расходы: ${s.expenses}`;
 }
 
-load();
+fetch('/api/insight')
+  .then(r => r.text())
+  .then(t => {
+    document.getElementById('ai-insight').innerHTML = t;
+  })
+  .catch(() => {
+    document.getElementById('ai-insight').innerText =
+      'AI tahlil mavjud emas / AI анализ недоступен';
+  });
 
+fetch('/api/recommend')
+  .then(r => r.text())
+  .then(t => {
+    document.getElementById('ai-recommend').innerHTML = t;
+  })
+  .catch(() => {
+    document.getElementById('ai-recommend').innerText =
+      'AI tavsiyalar mavjud emas / AI рекомендации недоступны';
+  });

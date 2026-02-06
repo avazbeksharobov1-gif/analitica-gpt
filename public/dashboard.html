@@ -1,0 +1,43 @@
+<h3>📈 30 кунлик прогноз (солиштириш)</h3>
+<canvas id="forecastCompare"></canvas>
+<h3>🧠 AI Insight</h3>
+<div id="aiInsight" class="card">
+  Юкланяпти...
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch('/api/forecast-compare')
+  .then(r => r.json())
+  .then(d => {
+    new Chart(document.getElementById('forecastCompare'), {
+      type: 'line',
+      data: {
+        labels: d.current.map((_, i) => `Day ${i + 1}`),
+        datasets: [
+          {
+            label: 'This period',
+            data: d.current,
+            borderColor: '#22c55e',
+            tension: 0.4
+          },
+          {
+            label: 'Previous period',
+            data: d.previous,
+            borderColor: '#ef4444',
+            tension: 0.4
+          }
+        ]
+      }
+    });
+  });
+</script>
+<script>
+fetch('/api/ai-insight')
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById('aiInsight').innerHTML =
+      d.ok ? d.text : 'AI таҳлил мавжуд эмас';
+  });
+</script>
+

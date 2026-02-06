@@ -1,3 +1,5 @@
+// Prisma schema for Analitica GPT
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,24 +9,102 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  telegramId String  @unique
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
+model Project {
+  id         Int      @id @default(autoincrement())
+  name       String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  products   Product[]
+  expenses   Expense[]
+  dailyStats SellerDaily[]
+  itemStats  SellerItemDaily[]
+  alerts     AlertSetting[]
 }
 
-model Subscription {
-  id        String   @id @default(cuid())
-  userId    String
-  plan      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+model Product {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  sku        String
+  name       String
+  costPrice  Float
+  currency   String  @default("UZS")
+  isActive   Boolean @default(true)
+  createdAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  project    Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, sku])
 }
 
-enum Role {
-  USER
-  ADMIN
+model ExpenseCategory {
+  id    Int    @id @default(autoincrement())
+  code  String @unique
+  name  String
+
+  expenses Expense[]
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  categoryId  Int
+  amount      Float
+  date        DateTime
+  note        String?
+  createdAt   DateTime @default(now())
+
+  project     Project @relation(fields: [projectId], references: [id])
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([projectId, date])
+}
+
+model SellerDaily {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  date       DateTime
+  revenue    Float    @default(0)
+  orders     Int      @default(0)
+  fees       Float    @default(0)
+  logistics  Float    @default(0)
+  returns    Float    @default(0)
+  currency   String   @default("UZS")
+  createdAt  DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, date])
+}
+
+model SellerItemDaily {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  date       DateTime
+  sku        String
+  quantity   Int      @default(0)
+  revenue    Float    @default(0)
+  fees       Float    @default(0)
+  logistics  Float    @default(0)
+  returns    Float    @default(0)
+  currency   String   @default("UZS")
+  createdAt  DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, date, sku])
+  @@index([projectId, date])
+  @@index([projectId, sku])
+}
+
+model AlertSetting {
+  id         Int      @id @default(autoincrement())
+  projectId  Int
+  chatId     String
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, chatId])
 }

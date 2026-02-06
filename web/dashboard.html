@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <title>Analitica Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<h1>Analitica Dashboard</h1>
+
+<div class="cards">
+  <div class="card">Daromad / Доход: <b id="kpi-revenue">0</b></div>
+  <div class="card">Buyurtma / Заказы: <b id="kpi-orders">0</b></div>
+  <div class="card">Harajat / Расходы: <b id="kpi-expenses">0</b></div>
+  <div class="card">Foyda / Прибыль: <b id="kpi-profit">0</b></div>
+</div>
+
+<h2>?? Forecast Compare</h2>
+<canvas id="forecastChart" height="120"></canvas>
+
+<h2>?? AI Insight</h2>
+<div id="aiInsight" class="card">Юкланяпти...</div>
+
+<h2>?? AI Recommendations</h2>
+<div id="aiRecommend" class="card">Юкланяпти...</div>
+
+<h2>?? AI Anomaly</h2>
+<div id="aiAnomaly" class="card">Юкланяпти...</div>
+
+<h2>?? Product Profit Insight</h2>
+<div id="aiProduct" class="card">Юкланяпти...</div>
+
+<script>
+async function loadKpi() {
+  const r = await fetch('/api/stats');
+  const s = await r.json();
+  document.getElementById('kpi-revenue').innerText = s.revenue;
+  document.getElementById('kpi-orders').innerText = s.orders;
+  document.getElementById('kpi-expenses').innerText = s.expenses;
+  document.getElementById('kpi-profit').innerText = s.profit;
+}
+
+async function loadForecast() {
+  const r = await fetch('/api/forecast-compare');
+  const d = await r.json();
+  const labels = d.current.map((_, i) => `Day ${i + 1}`);
+
+  new Chart(document.getElementById('forecastChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Current',
+          data: d.current,
+          borderColor: '#22c55e',
+          tension: 0.4
+        },
+        {
+          label: 'Previous',
+          data: d.previous,
+          borderColor: '#ef4444',
+          tension: 0.4
+        }
+      ]
+    }
+  });
+}
+
+fetch('/api/insight')
+  .then(r => r.text())
+  .then(t => document.getElementById('aiInsight').innerHTML = t);
+
+fetch('/api/recommend')
+  .then(r => r.text())
+  .then(t => document.getElementById('aiRecommend').innerHTML = t);
+
+fetch('/api/anomaly')
+  .then(r => r.text())
+  .then(t => document.getElementById('aiAnomaly').innerHTML = t);
+
+fetch('/api/products/insight')
+  .then(r => r.text())
+  .then(t => document.getElementById('aiProduct').innerHTML = t);
+
+loadKpi();
+loadForecast();
+</script>
+
+</body>
+</html>

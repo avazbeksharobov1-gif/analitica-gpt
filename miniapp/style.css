@@ -1,0 +1,28 @@
+body {
+  background:#0f172a;
+  color:#fff;
+  font-family:Arial;
+  padding:20px;
+}
+.cards {
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.card {
+  background:#1e293b;
+  padding:16px;
+  border-radius:12px;
+  min-width:140px;
+}
+canvas {
+  margin-top:30px;
+  background:#020617;
+  border-radius:12px;
+}
+.ai {
+  margin-top:30px;
+  background:#020617;
+  padding:15px;
+  border-radius:12px;
+}

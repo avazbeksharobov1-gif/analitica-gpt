@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <title>Analitica Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<h1>Admin Panel</h1>
+
+<div class="card">
+  <h2>Projects</h2>
+  <select id="projectSelect"></select>
+  <button id="refreshProjects">Refresh</button>
+  <div style="margin-top:10px">
+    <input id="newProjectName" placeholder="Project name" />
+    <button id="createProject">Create</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Products (Cost Price)</h2>
+  <div>
+    <input id="sku" placeholder="SKU" />
+    <input id="pname" placeholder="Name" />
+    <input id="cost" placeholder="Cost price" />
+    <button id="addProduct">Add</button>
+  </div>
+  <div id="productsList" style="margin-top:10px"></div>
+</div>
+
+<div class="card">
+  <h2>Expenses</h2>
+  <div>
+    <select id="expenseCategory"></select>
+    <input id="expenseAmount" placeholder="Amount" />
+    <input id="expenseNote" placeholder="Note" />
+    <button id="addExpense">Add</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Yandex Sync</h2>
+  <input id="syncDate" placeholder="YYYY-MM-DD" />
+  <button id="syncBtn">Sync Day</button>
+  <div id="syncResult"></div>
+</div>
+
+<div class="card">
+  <h2>AI Product Insight</h2>
+  <button id="loadProductInsight">Load</button>
+  <div id="productInsight" style="margin-top:10px"></div>
+</div>
+
+<script>
+const projectSelect = document.getElementById('projectSelect');
+
+async function loadProjects() {
+  const r = await fetch('/api/projects');
+  const list = await r.json();
+  projectSelect.innerHTML = '';
+  for (const p of list) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = `${p.id}. ${p.name}`;
+    projectSelect.appendChild(opt);
+  }
+}
+
+async function loadCategories() {
+  const r = await fetch('/api/expense-categories');
+  const list = await r.json();
+  const sel = document.getElementById('expenseCategory');
+  sel.innerHTML = '';
+  for (const c of list) {
+    const opt = document.createElement('option');
+    opt.value = c.code;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadProducts() {
+  const project = projectSelect.value || 1;
+  const r = await fetch(`/api/products?project=${project}`);
+  const list = await r.json();
+  const wrap = document.getElementById('productsList');
+  wrap.innerHTML = list.map(p => `${p.sku} - ${p.name} - ${p.costPrice}`).join('<br>');
+}
+
+async function addProduct() {
+  const projectId = Number(projectSelect.value || 1);
+  const sku = document.getElementById('sku').value;
+  const name = document.getElementById('pname').value;
+  const costPrice = Number(document.getElementById('cost').value || 0);
+  await fetch('/api/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, sku, name, costPrice })
+  });
+  loadProducts();
+}
+
+async function addExpense() {
+  const projectId = Number(projectSelect.value || 1);
+  const category = document.getElementById('expenseCategory').value;
+  const amount = Number(document.getElementById('expenseAmount').value || 0);
+  const note = document.getElementById('expenseNote').value;
+  await fetch('/api/expenses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, category, amount, note })
+  });
+}
+
+async function syncDay() {
+  const projectId = Number(projectSelect.value || 1);
+  const date = document.getElementById('syncDate').value;
+  const r = await fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, date })
+  });
+  const d = await r.json();
+  document.getElementById('syncResult').innerText = JSON.stringify(d);
+}
+
+async function loadProductInsight() {
+  const projectId = Number(projectSelect.value || 1);
+  const r = await fetch(`/api/products/insight?project=${projectId}`);
+  const t = await r.text();
+  document.getElementById('productInsight').innerHTML = t;
+}
+
+loadProjects().then(loadProducts);
+loadCategories();
+
+projectSelect.addEventListener('change', loadProducts);
+
+document.getElementById('refreshProjects').onclick = loadProjects;
+document.getElementById('createProject').onclick = async () => {
+  const name = document.getElementById('newProjectName').value || 'New Project';
+  await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  loadProjects();
+};
+
+document.getElementById('addProduct').onclick = addProduct;
+document.getElementById('addExpense').onclick = addExpense;
+document.getElementById('syncBtn').onclick = syncDay;
+document.getElementById('loadProductInsight').onclick = loadProductInsight;
+</script>
+
+</body>
+</html>

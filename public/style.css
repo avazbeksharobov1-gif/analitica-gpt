@@ -1,41 +1,86 @@
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --card: #020617;
+  --accent: #22c55e;
+  --accent-red: #ef4444;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Inter, Arial, sans-serif;
   margin: 0;
-  background: #f5f7fb;
-  color: #111;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, Arial, sans-serif;
+  padding: 30px;
 }
 
-header {
-  background: white;
-  padding: 20px;
-  border-bottom: 1px solid #ddd;
+/* ---------- HEADERS ---------- */
+h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
 }
 
-main {
-  padding: 20px;
+h2 {
+  margin-top: 40px;
+  margin-bottom: 15px;
+  font-size: 20px;
 }
 
+/* ---------- GRID ---------- */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 20px;
 }
 
+/* ---------- CARDS ---------- */
 .card {
-  background: white;
+  background: linear-gradient(160deg, #020617, #020617);
   padding: 20px;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.06);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.4);
+  transition: transform .2s ease, box-shadow .2s ease;
 }
 
-.card div {
-  font-size: 28px;
-  font-weight: 700;
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 60px rgba(0,0,0,.6);
 }
 
+.card b {
+  font-size: 22px;
+}
+
+/* ---------- AI BLOCK ---------- */
 .ai {
-  margin-top: 30px;
-  background: #fff;
-  padding: 20px;
-  border-radius: 14px;
+  background: linear-gradient(135deg, #1e293b, #020617);
+  border-left: 4px solid var(--accent);
+}
+
+/* ---------- CHART ---------- */
+canvas {
+  margin-top: 25px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 15px;
+}
+
+/* ---------- FOOTER ---------- */
+.footer {
+  margin-top: 60px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- MOBILE ---------- */
+@media (max-width: 600px) {
+  body {
+    padding: 15px;
+  }
 }
