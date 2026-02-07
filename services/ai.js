@@ -26,6 +26,7 @@ async function aiRecommend(stats) {
 Revenue: ${stats.revenue}
 Orders: ${stats.orders}
 Fees: ${stats.fees}
+Acquiring: ${stats.acquiring}
 Logistics: ${stats.logistics}
 Returns: ${stats.returns}
 Expenses: ${stats.expenses}

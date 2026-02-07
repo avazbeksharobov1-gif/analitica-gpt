@@ -32,10 +32,11 @@ async function sumDaily(projectId, from, to) {
       revenue: a.revenue + b.revenue,
       orders: a.orders + b.orders,
       fees: a.fees + b.fees,
+      acquiring: a.acquiring + b.acquiring,
       logistics: a.logistics + b.logistics,
       returns: a.returns + b.returns
     }),
-    { revenue: 0, orders: 0, fees: 0, logistics: 0, returns: 0 }
+    { revenue: 0, orders: 0, fees: 0, acquiring: 0, logistics: 0, returns: 0 }
   );
 }
 
@@ -66,12 +67,19 @@ async function getKpi(projectId, from, to) {
   ]);
 
   const profit =
-    sales.revenue - expenses - sales.fees - sales.logistics - sales.returns - cogs;
+    sales.revenue -
+    expenses -
+    sales.fees -
+    sales.acquiring -
+    sales.logistics -
+    sales.returns -
+    cogs;
 
   return {
     revenue: sales.revenue,
     orders: sales.orders,
     fees: sales.fees,
+    acquiring: sales.acquiring,
     logistics: sales.logistics,
     returns: sales.returns,
     expenses,
@@ -143,9 +151,21 @@ async function getProductProfit(projectId, from, to) {
 
   const agg = new Map();
   for (const it of items) {
-    const prev = agg.get(it.sku) || { sku: it.sku, quantity: 0, revenue: 0 };
+    const prev = agg.get(it.sku) || {
+      sku: it.sku,
+      quantity: 0,
+      revenue: 0,
+      fees: 0,
+      acquiring: 0,
+      logistics: 0,
+      returns: 0
+    };
     prev.quantity += it.quantity;
     prev.revenue += it.revenue;
+    prev.fees += it.fees || 0;
+    prev.acquiring += it.acquiring || 0;
+    prev.logistics += it.logistics || 0;
+    prev.returns += it.returns || 0;
     agg.set(it.sku, prev);
   }
 
@@ -154,7 +174,8 @@ async function getProductProfit(projectId, from, to) {
     const p = productMap.get(row.sku);
     const costPrice = p ? p.costPrice : 0;
     const cogs = row.quantity * costPrice;
-    const profit = row.revenue - cogs;
+    const profit =
+      row.revenue - cogs - row.fees - row.acquiring - row.logistics - row.returns;
     const margin = row.revenue ? (profit / row.revenue) * 100 : 0;
     result.push({
       sku: row.sku,
@@ -163,6 +184,10 @@ async function getProductProfit(projectId, from, to) {
       revenue: row.revenue,
       costPrice,
       cogs,
+      fees: row.fees,
+      acquiring: row.acquiring,
+      logistics: row.logistics,
+      returns: row.returns,
       profit,
       margin
     });

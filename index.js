@@ -1,13 +1,21 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const { setupAlerts } = require('./bot/alerts');
-const { ensureCategories, ensureProject } = require('./services/bootstrap');
 
 const bot = require('./bot');
+const { setupAlerts } = require('./bot/alerts');
+const setupBotCron = require('./bot/cron');
+let setupCron;
+try {
+  ({ setupCron } = require('./cron'));
+} catch (e) {
+  setupCron = null;
+}
+
 const dashboard = require('./web/dashboard');
 const admin = require('./web/admin');
 const api = require('./web/api');
+const { ensureCategories, ensureProject } = require('./services/bootstrap');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -17,31 +25,44 @@ const ADMIN_IDS = process.env.ADMIN_IDS
   ? process.env.ADMIN_IDS.split(',').map(String)
   : [];
 
-setupAlerts(bot, ADMIN_IDS);
-
-/* EXPRESS */
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* WEB */
-dashboard(app);
-admin(app);
-api(app);
+app.get('/', (req, res) => res.redirect('/dashboard'));
 
-/* TELEGRAM WEBHOOK */
+// WEB
+const addWebRoutes = () => {
+  dashboard(app);
+  admin(app);
+  api(app);
+};
+addWebRoutes();
+
+// TELEGRAM WEBHOOK
 app.post('/telegram', (req, res) => {
   bot.handleUpdate(req.body, res);
 });
 
-/* START */
+// START
 app.listen(PORT, async () => {
-  await ensureCategories();
-  await ensureProject();
+  try {
+    await ensureCategories();
+    await ensureProject();
+  } catch (e) {
+    console.error('Bootstrap error:', e.message);
+  }
+
   console.log('Server running on', PORT);
+
+  setupAlerts(bot, ADMIN_IDS);
+  setupBotCron(bot, ADMIN_IDS);
+  if (setupCron) setupCron(bot);
+
   if (WEBHOOK_URL) {
     await bot.telegram.setWebhook(`${WEBHOOK_URL}/telegram`);
     console.log('Webhook connected');
   } else {
-    console.warn('WEBHOOK_URL is not set; webhook not configured');
+    await bot.launch();
+    console.log('Bot launched (long polling)');
   }
 });

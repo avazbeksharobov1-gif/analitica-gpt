@@ -1,5 +1,6 @@
 const { prisma } = require('./db');
 const { fetchOrdersByDate, fetchReturnsByDate, fetchPayoutsByDate } = require('./yandexSeller');
+const ACQUIRING_RATE = Number(process.env.ACQUIRING_RATE || 0.01);
 
 function toDateOnly(d) {
   const dt = new Date(d);
@@ -9,6 +10,20 @@ function toDateOnly(d) {
 
 function sumMoney(items, field) {
   return items.reduce((s, it) => s + (Number(it[field]) || 0), 0);
+}
+
+function pickNumber(obj, keys) {
+  for (const k of keys) {
+    if (obj && obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
+      const n = Number(obj[k]);
+      if (!Number.isNaN(n)) return n;
+    }
+  }
+  return 0;
+}
+
+function sumByKeys(items, keys) {
+  return items.reduce((sum, it) => sum + pickNumber(it, keys), 0);
 }
 
 async function syncDay(projectId, date) {
@@ -28,22 +43,73 @@ async function syncDay(projectId, date) {
   let revenue = 0;
   let ordersCount = 0;
   let fees = 0;
+  let acquiring = 0;
   let logistics = 0;
   let returnsSum = 0;
 
   const itemAgg = new Map();
+  const returnsBySku = new Map();
+
+  const payoutAcquiring = sumByKeys(payouts, [
+    'acquiring',
+    'acquiringFee',
+    'paymentFee',
+    'paymentProcessingFee',
+    'bankFee',
+    'processingFee'
+  ]);
 
   for (const o of orders) {
     ordersCount += 1;
-    revenue += Number(o.total) || 0;
-    fees += Number(o.fee) || 0;
-    logistics += Number(o.delivery) || 0;
+    const orderRevenue = Number(o.total) || Number(o.itemsTotal) || 0;
+    const orderFees = pickNumber(o, ['fee', 'fees', 'marketplaceFee', 'commission']);
+    const orderLogistics = pickNumber(o, ['delivery', 'logistics', 'shipping', 'shipment']);
+    let orderAcquiring = pickNumber(o, [
+      'acquiring',
+      'acquiringFee',
+      'paymentFee',
+      'paymentProcessingFee',
+      'bankFee',
+      'processingFee'
+    ]);
+
+    if (!orderAcquiring && ACQUIRING_RATE > 0) {
+      orderAcquiring = orderRevenue * ACQUIRING_RATE;
+    }
+
+    revenue += orderRevenue;
+    fees += orderFees;
+    logistics += orderLogistics;
+    acquiring += orderAcquiring;
     if (Array.isArray(o.items)) {
       for (const it of o.items) {
         const sku = String(it.offerId || it.sku || 'unknown');
-        const prev = itemAgg.get(sku) || { quantity: 0, revenue: 0, fees: 0, logistics: 0, returns: 0 };
-        prev.quantity += Number(it.count) || 0;
-        prev.revenue += Number(it.price) * (Number(it.count) || 0);
+        const prev = itemAgg.get(sku) || {
+          quantity: 0,
+          revenue: 0,
+          fees: 0,
+          acquiring: 0,
+          logistics: 0,
+          returns: 0
+        };
+        const qty = Number(it.count) || 0;
+        const price = Number(it.price) || 0;
+        const itemRevenue = price * qty;
+        prev.quantity += qty;
+        prev.revenue += itemRevenue;
+
+        const itemFees = pickNumber(it, ['fee', 'fees', 'commission']);
+        const itemLogistics = pickNumber(it, ['delivery', 'logistics']);
+        const itemAcquiring = pickNumber(it, [
+          'acquiring',
+          'acquiringFee',
+          'paymentFee',
+          'paymentProcessingFee'
+        ]);
+
+        prev.fees += itemFees || (orderRevenue ? (orderFees * itemRevenue) / orderRevenue : 0);
+        prev.logistics += itemLogistics || (orderRevenue ? (orderLogistics * itemRevenue) / orderRevenue : 0);
+        prev.acquiring += itemAcquiring || (orderRevenue ? (orderAcquiring * itemRevenue) / orderRevenue : 0);
         itemAgg.set(sku, prev);
       }
     }
@@ -51,10 +117,51 @@ async function syncDay(projectId, date) {
 
   returnsSum = sumMoney(returns, 'amount');
 
+  for (const r of returns) {
+    const items = r.items || r.returnItems || [];
+    if (!Array.isArray(items)) continue;
+    for (const it of items) {
+      const sku = String(it.offerId || it.sku || 'unknown');
+      const qty = Number(it.count || it.quantity || 1);
+      const amount = Number(it.amount || it.price || it.refund || 0);
+      const total = amount * (qty || 1);
+      returnsBySku.set(sku, (returnsBySku.get(sku) || 0) + total);
+    }
+  }
+
+  if (returnsBySku.size) {
+    for (const [sku, total] of returnsBySku.entries()) {
+      const prev = itemAgg.get(sku) || {
+        quantity: 0,
+        revenue: 0,
+        fees: 0,
+        acquiring: 0,
+        logistics: 0,
+        returns: 0
+      };
+      prev.returns += total;
+      itemAgg.set(sku, prev);
+    }
+  }
+
+  if (payoutAcquiring > 0) {
+    if (acquiring > 0) {
+      const k = payoutAcquiring / acquiring;
+      for (const it of itemAgg.values()) {
+        it.acquiring *= k;
+      }
+    } else if (revenue > 0) {
+      for (const it of itemAgg.values()) {
+        it.acquiring = (it.revenue / revenue) * payoutAcquiring;
+      }
+    }
+    acquiring = payoutAcquiring;
+  }
+
   await prisma.sellerDaily.upsert({
     where: { projectId_date: { projectId, date: day } },
-    update: { revenue, orders: ordersCount, fees, logistics, returns: returnsSum },
-    create: { projectId, date: day, revenue, orders: ordersCount, fees, logistics, returns: returnsSum }
+    update: { revenue, orders: ordersCount, fees, acquiring, logistics, returns: returnsSum },
+    create: { projectId, date: day, revenue, orders: ordersCount, fees, acquiring, logistics, returns: returnsSum }
   });
 
   await prisma.sellerItemDaily.deleteMany({ where: { projectId, date: day } });
@@ -68,13 +175,14 @@ async function syncDay(projectId, date) {
         quantity: v.quantity,
         revenue: v.revenue,
         fees: v.fees,
+        acquiring: v.acquiring,
         logistics: v.logistics,
         returns: v.returns
       }
     });
   }
 
-  return { revenue, orders: ordersCount, fees, logistics, returns: returnsSum };
+  return { revenue, orders: ordersCount, fees, acquiring, logistics, returns: returnsSum };
 }
 
 module.exports = { syncDay };

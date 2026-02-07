@@ -1,94 +1,130 @@
-<!DOCTYPE html>
+п»ї<!DOCTYPE html>
 <html lang="uz">
 <head>
   <meta charset="UTF-8" />
-  <title>Analitica Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analitica Dashboard</title>
   <link rel="stylesheet" href="/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="/main.js"></script>
 </head>
 <body>
+  <header class="topbar">
+    <div class="wrap topbar-grid">
+      <div class="brand">
+        <span class="logo">A</span>
+        <div>
+          <div class="title">Analitica</div>
+          <div class="subtitle">Market Analytics + AI</div>
+        </div>
+      </div>
 
-<h1>Analitica Dashboard</h1>
+      <div class="range">
+        <button class="btn ghost active" data-range="7d">7 days</button>
+        <button class="btn ghost" data-range="30d">30 days</button>
+        <button class="btn ghost" data-range="today">Today</button>
+      </div>
 
-<div class="cards">
-  <div class="card">Daromad / Доход: <b id="kpi-revenue">0</b></div>
-  <div class="card">Buyurtma / Заказы: <b id="kpi-orders">0</b></div>
-  <div class="card">Harajat / Расходы: <b id="kpi-expenses">0</b></div>
-  <div class="card">Foyda / Прибыль: <b id="kpi-profit">0</b></div>
-</div>
+      <div class="actions">
+        <button class="btn" id="refreshBtn">Refresh</button>
+        <button class="btn primary" id="aiBtn">AI Update</button>
+      </div>
+    </div>
+  </header>
 
-<h2>?? Forecast Compare</h2>
-<canvas id="forecastChart" height="120"></canvas>
+  <main class="wrap">
+    <section class="kpi-grid">
+      <div class="card">
+        <div class="kpi-label">Revenue</div>
+        <div class="kpi-value" id="kpi-revenue">0</div>
+        <div class="kpi-sub" id="kpi-range">Range: 7 days</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Orders</div>
+        <div class="kpi-value" id="kpi-orders">0</div>
+        <div class="kpi-sub">Total orders</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Expenses</div>
+        <div class="kpi-value danger" id="kpi-expenses">0</div>
+        <div class="kpi-sub">Fees + acquiring + logistics + returns + expenses + COGS</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Profit</div>
+        <div class="kpi-value success" id="kpi-profit">0</div>
+        <div class="kpi-sub" id="kpi-margin">Margin: 0%</div>
+      </div>
+    </section>
 
-<h2>?? AI Insight</h2>
-<div id="aiInsight" class="card">Юкланяпти...</div>
+    <section class="grid-2">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>30-day forecast compare</h3>
+          <span class="muted" id="lastUpdated">Updated: -</span>
+        </div>
+        <canvas id="forecastChart" height="120"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Cost breakdown</h3>
+        </div>
+        <div class="breakdown">
+          <div><span>Fees (commission)</span><b id="kpi-fees">0</b></div>
+          <div><span>Acquiring</span><b id="kpi-acquiring">0</b></div>
+          <div><span>Logistics</span><b id="kpi-logistics">0</b></div>
+          <div><span>Returns</span><b id="kpi-returns">0</b></div>
+          <div><span>Expenses</span><b id="kpi-expenses-break">0</b></div>
+          <div><span>COGS</span><b id="kpi-cogs">0</b></div>
+        </div>
+        <div class="compare" id="compareText">Loading...</div>
+      </div>
+    </section>
 
-<h2>?? AI Recommendations</h2>
-<div id="aiRecommend" class="card">Юкланяпти...</div>
+    <section class="ai-section">
+      <div class="panel ai">
+        <div class="panel-header">
+          <h3>AI Insight</h3>
+          <span class="muted" id="aiStatus">Idle</span>
+        </div>
+        <div class="ai-grid">
+          <div class="ai-card" id="aiInsight">Waiting for AI...</div>
+          <div class="ai-card" id="aiRecommend">Waiting for AI...</div>
+          <div class="ai-card" id="aiAnomaly">Waiting for AI...</div>
+          <div class="ai-card" id="aiProduct">Waiting for AI...</div>
+        </div>
+      </div>
+    </section>
 
-<h2>?? AI Anomaly</h2>
-<div id="aiAnomaly" class="card">Юкланяпти...</div>
-
-<h2>?? Product Profit Insight</h2>
-<div id="aiProduct" class="card">Юкланяпти...</div>
-
-<script>
-async function loadKpi() {
-  const r = await fetch('/api/stats');
-  const s = await r.json();
-  document.getElementById('kpi-revenue').innerText = s.revenue;
-  document.getElementById('kpi-orders').innerText = s.orders;
-  document.getElementById('kpi-expenses').innerText = s.expenses;
-  document.getElementById('kpi-profit').innerText = s.profit;
-}
-
-async function loadForecast() {
-  const r = await fetch('/api/forecast-compare');
-  const d = await r.json();
-  const labels = d.current.map((_, i) => `Day ${i + 1}`);
-
-  new Chart(document.getElementById('forecastChart'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Current',
-          data: d.current,
-          borderColor: '#22c55e',
-          tension: 0.4
-        },
-        {
-          label: 'Previous',
-          data: d.previous,
-          borderColor: '#ef4444',
-          tension: 0.4
-        }
-      ]
-    }
-  });
-}
-
-fetch('/api/insight')
-  .then(r => r.text())
-  .then(t => document.getElementById('aiInsight').innerHTML = t);
-
-fetch('/api/recommend')
-  .then(r => r.text())
-  .then(t => document.getElementById('aiRecommend').innerHTML = t);
-
-fetch('/api/anomaly')
-  .then(r => r.text())
-  .then(t => document.getElementById('aiAnomaly').innerHTML = t);
-
-fetch('/api/products/insight')
-  .then(r => r.text())
-  .then(t => document.getElementById('aiProduct').innerHTML = t);
-
-loadKpi();
-loadForecast();
-</script>
-
+    <section class="table-section">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Products (SKU)</h3>
+          <span class="muted" id="productsCount">0 items</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Name</th>
+                <th>Qty</th>
+                <th>Revenue</th>
+                <th>Fees</th>
+                <th>Acquiring</th>
+                <th>Logistics</th>
+                <th>Returns</th>
+                <th>COGS</th>
+                <th>Profit</th>
+                <th>Margin</th>
+              </tr>
+            </thead>
+            <tbody id="productTable">
+              <tr><td colspan="11">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
 </body>
 </html>

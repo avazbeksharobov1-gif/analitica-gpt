@@ -1,21 +1,24 @@
-const { getKpi, getCompareStats, getForecastCompare, listProjects, addExpense } = require('../services/analytics');
+п»їconst {
+  getKpi,
+  getCompareStats,
+  getForecastCompare,
+  listProjects,
+  addExpense
+} = require('../services/analytics');
 const { aiInsight, aiRecommend } = require('../services/ai');
 const { prisma } = require('../services/db');
 
 const projectByChat = new Map();
 
 const CATEGORY_ALIASES = {
-  'свет': 'svet',
-  'газ': 'gaz',
-  'сув': 'suv',
-  'озик': 'ozik',
-  'ози?': 'ozik',
-  'овкат': 'ozik',
-  'ов?ат': 'ozik',
-  'мошина': 'moshina',
-  'солик': 'soliq',
-  'соли?': 'soliq',
-  'квартплата': 'kvartp'
+  svet: 'svet',
+  gaz: 'gaz',
+  suv: 'suv',
+  ozik: 'ozik',
+  ovqat: 'ozik',
+  moshina: 'moshina',
+  soliq: 'soliq',
+  kvartplata: 'kvartp'
 };
 
 function parseExpense(text) {
@@ -43,33 +46,28 @@ function setupCommands(bot) {
     const p = await getOrCreateProject();
     projectByChat.set(String(ctx.chat.id), p.id);
     ctx.reply(
-      'Analitica GPT\n\n' +
-      '/stats - Hisobot / Отчёт\n' +
-      '/compare - Taqqoslash / Сравнение\n' +
-      '/forecast - 30 kun prognoz / Прогноз 30 дней\n' +
-      '/insight - AI tahlil / AI анализ\n' +
-      '/recommend - AI tavsiyalar / AI рекомендации\n' +
-      '/projects - Loyihalar / Проекты\n' +
-      '/project <id> - Tanlash / Выбор\n' +
-      '/alerts on|off - Alert yoq/ochir\n' +
-      'Харажат: харжат свет 150000'
+      'Analitica Bot\n\n' +
+        '/stats - Daily KPI\n' +
+        '/month - 30 day KPI\n' +
+        '/compare - Week compare\n' +
+        '/forecast - 30 day forecast\n' +
+        '/insight - AI insight\n' +
+        '/recommend - AI recommendations\n' +
+        '/projects - Project list\n' +
+        '/project <id> - Select project\n' +
+        '/alerts on|off - Profit drop alerts\n' +
+        'Expense format: expense svet 150000'
     );
   });
 
   bot.command('project', async (ctx) => {
     const parts = ctx.message.text.trim().split(/\s+/);
     const id = Number(parts[1]);
-    if (!id) {
-      ctx.reply('Формат: /project 1');
-      return;
-    }
+    if (!id) return ctx.reply('Format: /project 1');
     const p = await prisma.project.findUnique({ where: { id } });
-    if (!p) {
-      ctx.reply('Проект топилмади');
-      return;
-    }
+    if (!p) return ctx.reply('Project not found');
     projectByChat.set(String(ctx.chat.id), p.id);
-    ctx.reply(`Танланди: ${p.name}`);
+    ctx.reply(`Selected: ${p.name}`);
   });
 
   bot.command('stats', async (ctx) => {
@@ -77,21 +75,52 @@ function setupCommands(bot) {
     const today = new Date();
     const s = await getKpi(projectId, today, today);
     ctx.reply(
-      `Hisobot / Отчёт\n\n` +
-      `Daromad / Доход: ${s.revenue}\n` +
-      `Buyurtmalar / Заказы: ${s.orders}\n` +
-      `Harajat / Расходы: ${s.expenses}\n` +
-      `Foyda / Прибыль: ${s.profit}`
+      `Daily KPI\n\n` +
+        `Revenue: ${s.revenue}\n` +
+        `Orders: ${s.orders}\n` +
+        `Fees (commission): ${s.fees}\n` +
+        `Acquiring: ${s.acquiring}\n` +
+        `Logistics: ${s.logistics}\n` +
+        `Returns: ${s.returns}\n` +
+        `Expenses: ${s.expenses}\n` +
+        `COGS: ${s.cogs}\n` +
+        `Profit: ${s.profit}`
+    );
+  });
+
+  bot.command('month', async (ctx) => {
+    const projectId = getProjectId(ctx);
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 29);
+    const s = await getKpi(projectId, from, to);
+    ctx.reply(
+      `30-day KPI\n\n` +
+        `Revenue: ${s.revenue}\n` +
+        `Orders: ${s.orders}\n` +
+        `Fees (commission): ${s.fees}\n` +
+        `Acquiring: ${s.acquiring}\n` +
+        `Logistics: ${s.logistics}\n` +
+        `Returns: ${s.returns}\n` +
+        `Expenses: ${s.expenses}\n` +
+        `COGS: ${s.cogs}\n` +
+        `Profit: ${s.profit}`
     );
   });
 
   bot.command('compare', async (ctx) => {
     const projectId = getProjectId(ctx);
     const { thisWeek, lastWeek } = await getCompareStats(projectId);
+    const diff = lastWeek.revenue ? ((thisWeek.revenue - lastWeek.revenue) / lastWeek.revenue) * 100 : 0;
+    const profitDiff = lastWeek.profit ? ((thisWeek.profit - lastWeek.profit) / lastWeek.profit) * 100 : 0;
     ctx.reply(
-      `Taqqoslash / Сравнение\n\n` +
-      `Bu hafta / Эта неделя: ${thisWeek.revenue}\n` +
-      `O‘tgan hafta / Прошлая неделя: ${lastWeek.revenue}`
+      `Week compare\n\n` +
+        `Revenue this week: ${thisWeek.revenue}\n` +
+        `Revenue last week: ${lastWeek.revenue}\n` +
+        `Revenue change: ${diff.toFixed(1)}%\n\n` +
+        `Profit this week: ${thisWeek.profit}\n` +
+        `Profit last week: ${lastWeek.profit}\n` +
+        `Profit change: ${profitDiff.toFixed(1)}%`
     );
   });
 
@@ -101,9 +130,9 @@ function setupCommands(bot) {
     const today = f.current[0] ?? 0;
     const day30 = f.current[f.current.length - 1] ?? 0;
     ctx.reply(
-      `30 kun prognoz / Прогноз 30 дней\n\n` +
-      `Bugun / Сегодня: ${today}\n` +
-      `30 kundan keyin / Через 30 дней: ${day30}`
+      `30-day forecast\n\n` +
+        `Today: ${today}\n` +
+        `After 30 days: ${day30}`
     );
   });
 
@@ -111,7 +140,7 @@ function setupCommands(bot) {
     const projectId = getProjectId(ctx);
     const { thisWeek, lastWeek } = await getCompareStats(projectId);
     const text = await aiInsight(lastWeek.revenue, thisWeek.revenue);
-    ctx.reply(`AI tahlil / AI анализ\n\n${text}`);
+    ctx.reply(`AI insight\n\n${text}`);
   });
 
   bot.command('recommend', async (ctx) => {
@@ -119,16 +148,16 @@ function setupCommands(bot) {
       const projectId = getProjectId(ctx);
       const today = new Date();
       const text = await aiRecommend(await getKpi(projectId, today, today));
-      ctx.reply(`AI tavsiyalar / AI рекомендации\n\n${text}`);
+      ctx.reply(`AI recommendations\n\n${text}`);
     } catch (e) {
-      ctx.reply('AI tavsiyalar mavjud emas / AI рекомендации недоступны');
+      ctx.reply('AI not available');
     }
   });
 
   bot.command('projects', async (ctx) => {
     const list = await listProjects();
-    const text = list.map(p => `${p.id}. ${p.name}`).join('\n') || 'Bo\'sh / Пусто';
-    ctx.reply(`Loyihalar / Проекты\n\n${text}`);
+    const text = list.map(p => `${p.id}. ${p.name}`).join('\n') || 'Empty';
+    ctx.reply(`Projects\n\n${text}`);
   });
 
   bot.command('alerts', async (ctx) => {
@@ -140,21 +169,18 @@ function setupCommands(bot) {
       update: { enabled: on },
       create: { projectId, chatId, enabled: on }
     });
-    ctx.reply(on ? 'Alert yoqildi' : 'Alert o‘chirildi');
+    ctx.reply(on ? 'Alerts enabled' : 'Alerts disabled');
   });
 
-  bot.hears(/^(harajat|харжат)\s+/i, async (ctx) => {
+  bot.hears(/^(expense|harajat|С…Р°СЂР¶Р°С‚)\s+/i, async (ctx) => {
     try {
       const projectId = getProjectId(ctx);
       const parsed = parseExpense(ctx.message.text);
-      if (!parsed) {
-        ctx.reply('Формат: харжат свет 150000');
-        return;
-      }
+      if (!parsed) return ctx.reply('Format: expense svet 150000');
       await addExpense(projectId, parsed.category, parsed.amount, parsed.note);
-      ctx.reply('?ўшилди');
+      ctx.reply('Added');
     } catch (e) {
-      ctx.reply('Харажат ?ўшилмади');
+      ctx.reply('Failed to add expense');
     }
   });
 }

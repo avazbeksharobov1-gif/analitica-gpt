@@ -1,4 +1,9 @@
-const { getKpi, getCompareStats, getForecastCompare, getProductProfit } = require('../services/analytics');
+п»їconst {
+  getKpi,
+  getCompareStats,
+  getForecastCompare,
+  getProductProfit
+} = require('../services/analytics');
 const { aiInsight, aiRecommend, aiAnomalyDetect, aiProductProfit } = require('../services/ai');
 const { syncDay } = require('../services/ingest');
 const { prisma } = require('../services/db');
@@ -28,7 +33,7 @@ module.exports = (app) => {
       const text = await aiInsight(lastWeek.revenue, thisWeek.revenue);
       res.send(text);
     } catch (e) {
-      res.status(500).send('AI tahlil mavjud emas / AI анализ недоступен');
+      res.status(500).send('AI insight not available');
     }
   });
 
@@ -39,7 +44,7 @@ module.exports = (app) => {
       const text = await aiRecommend(await getKpi(projectId, today, today));
       res.send(text);
     } catch (e) {
-      res.status(500).send('AI tavsiyalar mavjud emas / AI рекомендации недоступны');
+      res.status(500).send('AI recommendation not available');
     }
   });
 
@@ -60,7 +65,7 @@ module.exports = (app) => {
       const text = await aiAnomalyDetect(series);
       res.send(text);
     } catch (e) {
-      res.status(500).send('AI anomaly mavjud emas / AI anomaly недоступен');
+      res.status(500).send('AI anomaly not available');
     }
   });
 
@@ -73,7 +78,19 @@ module.exports = (app) => {
       const text = await aiProductProfit(items);
       res.send(text);
     } catch (e) {
-      res.status(500).send('AI product insight mavjud emas / AI анализ товаров недоступен');
+      res.status(500).send('AI product insight not available');
+    }
+  });
+
+  app.get('/api/products/profit', async (req, res) => {
+    try {
+      const projectId = req.query.project ? Number(req.query.project) : 1;
+      const from = req.query.from ? new Date(req.query.from) : new Date();
+      const to = req.query.to ? new Date(req.query.to) : new Date();
+      const items = await getProductProfit(projectId, from, to);
+      res.json(items);
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
     }
   });
 

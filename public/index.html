@@ -1,14 +1,366 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="uz">
 <head>
   <meta charset="UTF-8" />
-  <title>Analitica Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="/style.css" />
+  <title>Yandex Market Analytics</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --surface: rgba(255, 255, 255, 0.85);
+      --shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+    }
+
+    body {
+      font-family: "Manrope", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at 10% -10%, #dbeafe 0%, transparent 60%),
+        radial-gradient(1200px 700px at 110% 0%, #fee2e2 0%, transparent 55%),
+        linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(14px);
+      background: rgba(255, 255, 255, 0.7);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .glass {
+      background: var(--surface);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat {
+      font-size: clamp(22px, 4vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .chip {
+      background: #eef2ff;
+      color: #3730a3;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ai-box {
+      background: linear-gradient(135deg, #1e40af, #4f46e5);
+      color: #fff;
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .profit-pos { color: var(--success); font-weight: 700; }
+    .profit-neg { color: var(--danger); font-weight: 700; }
+
+    .table input { max-width: 120px; }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(8px); }
+    }
+
+    @media (max-width: 768px) {
+      .table thead { display: none; }
+      .table tr {
+        display: block;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #fff;
+      }
+      .table td {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h1>Analitica Dashboard</h1>
-  <p>Dashboard: <a href="/dashboard">/dashboard</a></p>
-  <p>Admin: <a href="/admin">/admin</a></p>
+
+<header class="py-3">
+  <div class="container d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-graph-up-arrow"></i>
+      <strong>Yandex Market Analytics</strong>
+      <span class="chip">PRO</span>
+    </div>
+
+    <div class="btn-group" role="group">
+      <button class="btn btn-outline-primary btn-sm active" onclick="loadData('all', this)">Умумий</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="loadData('month', this)">Ойлик</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="loadData('week', this)">Ҳафта</button>
+      <button class="btn btn-outline-primary btn-sm" onclick="loadData('day', this)">Бугун</button>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary btn-sm" onclick="loadData(currentPeriod)"><i class="bi bi-arrow-repeat"></i> Янгилаш</button>
+      <a href="/api/export/excel" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+    </div>
+  </div>
+</header>
+
+<div class="container py-4">
+
+  <div class="row g-3 mb-4 text-center">
+    <div class="col-md-4">
+      <div class="glass p-4 fade-in">
+        <small class="text-muted">Жами савдо</small>
+        <div id="revenue" class="stat">0</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="glass p-4 fade-in">
+        <small class="text-muted">Жами чиқим</small>
+        <div id="expenses" class="stat text-danger">0</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="glass p-4 fade-in">
+        <small class="text-muted">Соф фойда</small>
+        <div id="profit" class="stat text-success">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="glass p-4">
+        <h6 class="fw-bold mb-3">Кунлик динамика</h6>
+        <canvas id="dailyChart" height="120"></canvas>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="glass p-4">
+        <h6 class="fw-bold mb-3">Ойлик динамика</h6>
+        <canvas id="monthlyChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="glass p-4">
+        <h6 class="fw-bold mb-3">Чиқимлар тақсимоти</h6>
+        <canvas id="expenseChart" height="120"></canvas>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="glass p-4">
+        <h6 class="fw-bold mb-3">30 кунлик прогноз</h6>
+        <canvas id="forecastChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-box mb-4">
+    <h5 class="fw-bold mb-3">AI таҳлил</h5>
+    <ul id="ai-insights" class="mb-0"></ul>
+  </div>
+
+  <div class="glass p-4">
+    <h6 class="fw-bold mb-3">Товарлар</h6>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <tbody id="product-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentPeriod = 'all';
+  let dailyChart, monthlyChart, expenseChart, forecastChart;
+
+  async function loadData(period = 'all', btn = null) {
+    currentPeriod = period;
+    if (btn) {
+      document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    const res = await fetch(`/api/stats?period=${period}`);
+    const data = await res.json();
+    const d = data.delivered;
+
+    const expenses = d.marketing + d.logistics + d.acquiring + d.totalItemCost;
+    const profit = d.revenue - expenses;
+
+    document.getElementById('revenue').innerText = Math.round(d.revenue).toLocaleString();
+    document.getElementById('expenses').innerText = '-' + Math.round(expenses).toLocaleString();
+    document.getElementById('profit').innerText = Math.round(profit).toLocaleString();
+
+    renderDailyChart(data.timeSeries?.daily || []);
+    renderMonthlyChart(data.timeSeries?.monthly || []);
+    renderExpenseChart(d, profit);
+    renderForecast(data.timeSeries?.daily || [], d.revenue);
+    renderAI(data.productDetails || {});
+    renderTable(data.productDetails || {});
+  }
+
+  function renderDailyChart(series) {
+    const labels = series.map(x => x.date);
+    const values = series.map(x => x.revenue);
+
+    if (dailyChart) dailyChart.destroy();
+    dailyChart = new Chart(document.getElementById('dailyChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,0.12)',
+          tension: 0.4,
+          fill: true
+        }]
+      },
+      options: { plugins: { legend: { display: false } } }
+    });
+  }
+
+  function renderMonthlyChart(series) {
+    const labels = series.map(x => x.month);
+    const values = series.map(x => x.revenue);
+
+    if (monthlyChart) monthlyChart.destroy();
+    monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: '#4f46e5' }]
+      },
+      options: { plugins: { legend: { display: false } } }
+    });
+  }
+
+  function renderExpenseChart(d, profit) {
+    if (expenseChart) expenseChart.destroy();
+    expenseChart = new Chart(document.getElementById('expenseChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Маркетинг', 'Логистика', 'Эквайринг', 'Таннарх', 'Фойда'],
+        datasets: [{
+          data: [d.marketing, d.logistics, d.acquiring, d.totalItemCost, Math.max(0, profit)],
+          backgroundColor: ['#fbbf24', '#60a5fa', '#f87171', '#a78bfa', '#34d399']
+        }]
+      },
+      options: { plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  function renderForecast(series, totalRevenue) {
+    const recent = series.slice(-7).map(x => x.revenue);
+    const base = recent.length ? recent.reduce((a, b) => a + b, 0) / recent.length : totalRevenue / 30;
+
+    const labels = [];
+    const values = [];
+    for (let i = 1; i <= 30; i++) {
+      labels.push(i);
+      values.push(base * (1 + i * 0.002));
+    }
+
+    if (forecastChart) forecastChart.destroy();
+    forecastChart = new Chart(document.getElementById('forecastChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: '#16a34a',
+          tension: 0.35,
+          fill: false
+        }]
+      },
+      options: { plugins: { legend: { display: false } } }
+    });
+  }
+
+  function renderAI(products) {
+    const list = document.getElementById('ai-insights');
+    list.innerHTML = '';
+
+    let best = null;
+    let worst = null;
+
+    for (const sku in products) {
+      const p = products[sku];
+      const profit = p.revenue - (p.marketing + p.logistics + p.acquiring + (p.cost * p.count));
+      if (!best || profit > best.profit) best = { sku, profit };
+      if (!worst || profit < worst.profit) worst = { sku, profit };
+    }
+
+    if (best) list.innerHTML += `<li>Энг фойдали товар: <b>${best.sku}</b></li>`;
+    if (worst) list.innerHTML += `<li>Энг паст фойда: <b>${worst.sku}</b></li>`;
+    list.innerHTML += `<li>Тавсия: паст маржали товарларда нарх ёки логистика харажатини оптимизация қилинг</li>`;
+  }
+
+  function renderTable(products) {
+    let html = '';
+    for (const sku in products) {
+      const p = products[sku];
+      const profit = p.revenue - (p.marketing + p.logistics + p.acquiring + (p.cost * p.count));
+
+      html += `
+        <tr>
+          <td>
+            <strong>${sku}</strong><br />
+            <small class="text-muted">${p.name}</small>
+          </td>
+          <td>${p.count}</td>
+          <td>
+            <input type="number" class="form-control form-control-sm"
+              value="${p.cost}"
+              onchange="saveCost('${sku}', this.value)" />
+          </td>
+          <td>${Math.round(p.revenue).toLocaleString()}</td>
+          <td class="${profit >= 0 ? 'profit-pos' : 'profit-neg'}">${Math.round(profit).toLocaleString()}</td>
+        </tr>`;
+    }
+
+    document.getElementById('product-table').innerHTML = html || '<tr><td>Маълумот йўқ</td></tr>';
+  }
+
+  async function saveCost(sku, cost) {
+    await fetch('/api/save-cost', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku, cost })
+    });
+  }
+
+  loadData('all');
+</script>
+
 </body>
 </html>
