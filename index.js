@@ -37,7 +37,7 @@ const ADMIN_IDS = process.env.ADMIN_IDS
   : [];
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 app.get('/', (req, res) => res.redirect('/dashboard'));
 
