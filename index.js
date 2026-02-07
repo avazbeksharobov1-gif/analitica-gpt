@@ -24,6 +24,12 @@ const WEBHOOK_URL =
   (process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
     : '');
+const IS_RAILWAY = Boolean(
+  process.env.RAILWAY_PUBLIC_DOMAIN ||
+    process.env.RAILWAY_PROJECT_ID ||
+    process.env.RAILWAY_ENVIRONMENT
+);
+const ENABLE_POLLING = process.env.ENABLE_POLLING === 'true';
 
 const ADMIN_IDS = process.env.ADMIN_IDS
   ? process.env.ADMIN_IDS.split(',').map(String)
@@ -66,6 +72,8 @@ app.listen(PORT, async () => {
   if (WEBHOOK_URL) {
     await bot.telegram.setWebhook(`${WEBHOOK_URL}/telegram`);
     console.log('Webhook connected');
+  } else if (IS_RAILWAY && !ENABLE_POLLING) {
+    console.warn('Polling disabled on Railway (set WEBHOOK_URL or ENABLE_POLLING=true).');
   } else {
     await bot.telegram.deleteWebhook();
     await bot.launch();
